@@ -72,7 +72,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       const response = await authAPI.login(email, password);
       
-      // CORRECCIÓN: response ya es el objeto con token y user
       setUser(response.user);
       setToken(response.token);
       
@@ -95,7 +94,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       const response = await authAPI.register(userData);
       
-      // CORRECCIÓN: response ya es el objeto con token y user
       setUser(response.user);
       setToken(response.token);
       
@@ -112,23 +110,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = async (): Promise<void> => {
-    try {
-      setUser(null);
-      setToken(null);
-      setError(null);
-      
-      await AsyncStorage.removeItem('userToken');
-      await AsyncStorage.removeItem('userData');
-    } catch (error) {
-      console.error('Error during logout:', error);
-      setError('Error cerrando sesión');
-    }
-  };
+  try {
+    console.log('🚪 AuthContext: Iniciando logout...');
+    
+    // 1. Limpiar AsyncStorage PRIMERO
+    await AsyncStorage.multiRemove(['userToken', 'userData']);
+    console.log('✅ AuthContext: AsyncStorage limpiado');
+    
+    // 2. Luego limpiar estado
+    setUser(null);
+    setToken(null);
+    setError(null);
+    
+    console.log('✅ AuthContext: Estado limpiado');
+    console.log('✅ AuthContext: Logout completado exitosamente');
+    
+  } catch (error) {
+    console.error('❌ AuthContext: Error durante logout:', error);
+    // Limpiar estado incluso si hay error con AsyncStorage
+    setUser(null);
+    setToken(null);
+    setError(null);
+    throw error; // ✅ IMPORTANTE: Propagar el error
+  }
+};
 
+
+  // 🔥 FUNCIÓN updateUser QUE FALTABA
   const updateUser = async (updatedUser: User): Promise<void> => {
     try {
       setUser(updatedUser);
       await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
+      console.log('✅ Usuario actualizado en contexto y storage');
     } catch (error) {
       console.error('Error updating user:', error);
       setError('Error actualizando usuario');
@@ -146,7 +159,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
-    updateUser,
+    updateUser, // ✅ AHORA SÍ ESTÁ INCLUIDA
     isAuthenticated: !!user && !!token,
     error,
     clearError

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   TextInput, 
   TouchableOpacity, 
   StyleSheet, 
-  Alert 
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { router } from 'expo-router';
@@ -21,29 +22,83 @@ export default function LoginScreen() {
     password: ''
   });
   const [loading, setLoading] = useState<boolean>(false);
-  const { login } = useAuth();
+  const [loginSuccess, setLoginSuccess] = useState<boolean>(false);
+  const { login, user, isAuthenticated } = useAuth();
+
+  // Efecto para redirigir cuando la autenticación es exitosa
+  useEffect(() => {
+    if (loginSuccess && user && isAuthenticated) {
+      console.log('✅ Login exitoso detectado, redirigiendo...', user.role);
+      
+      // Pequeño delay para asegurar la navegación
+      const timer = setTimeout(() => {
+        if (user.role === 'worker') {
+          router.replace('/worker');
+        } else if (user.role === 'client') {
+          router.replace('/client');
+        } else {
+          router.replace('/client'); // fallback
+        }
+        setLoginSuccess(false); // resetear estado
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [loginSuccess, user, isAuthenticated]);
 
   const handleLogin = async (): Promise<void> => {
-    if (!formData.email || !formData.password) {
+    if (!formData.email.trim() || !formData.password.trim()) {
       Alert.alert('Error', 'Por favor completa todos los campos');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      Alert.alert('Error', 'Por favor ingresa un email válido');
       return;
     }
 
     setLoading(true);
     
     try {
-      const mockUser = {
-        id: 1,
-        email: formData.email,
-        name: formData.email.split('@')[0],
-        role: formData.email.includes('worker') ? 'worker' : 'client' as 'client' | 'worker',
-        phone: '+1234567890'
-      };
+      console.log('📤 Enviando credenciales...');
+      await login(formData.email.trim(), formData.password);
       
-      await login(mockUser, 'mock-token-123');
+      // Marcar login como exitoso
+      setLoginSuccess(true);
+      console.log('✅ Login marcado como exitoso, esperando redirección...');
       
-    } catch (error) {
-      Alert.alert('Error', 'Credenciales inválidas. Usa cualquier email y contraseña para demo.');
+    } catch (error: any) {
+      console.error('❌ Error completo en login:', error);
+      setLoginSuccess(false);
+      
+      let errorMessage = 'Error al iniciar sesión';
+      
+      if (error.message) {
+        const errorMsgLower = error.message.toLowerCase();
+        
+        if (errorMsgLower.includes('no existe') || 
+            errorMsgLower.includes('not found') ||
+            errorMsgLower.includes('usuario no encontrado') ||
+            errorMsgLower.includes('user not found') ||
+            errorMsgLower.includes('invalid credentials') ||
+            errorMsgLower.includes('credenciales inválidas')) {
+          errorMessage = 'El usuario no existe. Por favor verifica tu email o regístrate.';
+        } else if (errorMsgLower.includes('password') || 
+                   errorMsgLower.includes('contraseña') ||
+                   errorMsgLower.includes('incorrect')) {
+          errorMessage = 'Contraseña incorrecta. Por favor intenta nuevamente.';
+        } else if (errorMsgLower.includes('network') || 
+                   errorMsgLower.includes('red') ||
+                   errorMsgLower.includes('connection')) {
+          errorMessage = 'Error de conexión. Verifica tu internet e intenta nuevamente.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      Alert.alert('Error de autenticación', errorMessage);
+      
     } finally {
       setLoading(false);
     }
@@ -51,6 +106,12 @@ export default function LoginScreen() {
 
   const updateField = (field: keyof LoginForm, value: string): void => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmitEditing = () => {
+    if (formData.email && formData.password) {
+      handleLogin();
+    }
   };
 
   return (
@@ -66,6 +127,8 @@ export default function LoginScreen() {
         autoCapitalize="none"
         keyboardType="email-address"
         placeholderTextColor="#999"
+        returnKeyType="next"
+        editable={!loading}
       />
       
       <TextInput
@@ -75,6 +138,9 @@ export default function LoginScreen() {
         onChangeText={(value) => updateField('password', value)}
         secureTextEntry
         placeholderTextColor="#999"
+        returnKeyType="done"
+        onSubmitEditing={handleSubmitEditing}
+        editable={!loading}
       />
       
       <TouchableOpacity 
@@ -82,28 +148,33 @@ export default function LoginScreen() {
         onPress={handleLogin}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>
-          {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-        </Text>
+        {loading ? (
+          <ActivityIndicator color="white" size="small" />
+        ) : (
+          <Text style={styles.buttonText}>Iniciar Sesión</Text>
+        )}
       </TouchableOpacity>
       
       <TouchableOpacity 
-        style={styles.linkButton}
-        onPress={() => router.push('./register')}
+        style={[styles.linkButton, loading && styles.linkButtonDisabled]}
+        onPress={() => !loading && router.push('/auth/register')}
+        disabled={loading}
       >
         <Text style={styles.linkText}>¿No tienes cuenta? Regístrate aquí</Text>
       </TouchableOpacity>
 
-      <View style={styles.demoSection}>
-        <Text style={styles.demoTitle}>Datos de prueba:</Text>
-        <Text style={styles.demoText}>Email: cliente@ejemplo.com / trabajador@ejemplo.com</Text>
-        <Text style={styles.demoText}>Password: cualquier contraseña</Text>
+      {/* Sección de debug */}
+      <View style={styles.debugSection}>
+        <Text style={styles.debugTitle}>Estado:</Text>
+        <Text style={styles.debugText}>Autenticado: {isAuthenticated ? 'Sí' : 'No'}</Text>
+        <Text style={styles.debugText}>Usuario: {user ? user.role : 'Ninguno'}</Text>
+        <Text style={styles.debugText}>Login Success: {loginSuccess ? 'Sí' : 'No'}</Text>
+        <Text style={styles.debugText}>Loading: {loading ? 'Sí' : 'No'}</Text>
       </View>
     </View>
   );
 }
 
-// Los styles permanecen igual...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -139,6 +210,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginBottom: 15,
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   buttonDisabled: {
     backgroundColor: '#ccc',
@@ -152,26 +225,30 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: 'center',
   },
+  linkButtonDisabled: {
+    opacity: 0.5,
+  },
   linkText: {
     color: '#007AFF',
     fontSize: 16,
   },
-  demoSection: {
-    marginTop: 40,
-    padding: 15,
-    backgroundColor: '#e9f7fe',
+  debugSection: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#fff3cd',
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
+    borderLeftColor: '#ffc107',
   },
-  demoTitle: {
+  debugTitle: {
     fontWeight: 'bold',
     marginBottom: 5,
-    color: '#333',
-  },
-  demoText: {
+    color: '#856404',
     fontSize: 12,
-    color: '#666',
+  },
+  debugText: {
+    fontSize: 10,
+    color: '#856404',
     marginBottom: 2,
   },
 });

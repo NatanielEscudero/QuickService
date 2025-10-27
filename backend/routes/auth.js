@@ -95,6 +95,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Login de usuario
+// CORREGIR la query del login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -103,9 +104,9 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email y contraseña son requeridos' });
     }
 
-    // Buscar usuario con información del worker si existe
+    // QUERY CORREGIDA - solo campos que SÍ existen
     const [users] = await promisePool.execute(`
-      SELECT u.*, w.profession, w.rating, w.completed_services 
+      SELECT u.*, w.profession, w.rating 
       FROM users u 
       LEFT JOIN workers w ON u.id = w.user_id 
       WHERE u.email = ?
@@ -137,17 +138,17 @@ router.post('/login', async (req, res) => {
 
     // Preparar respuesta del usuario (sin password)
     const userResponse = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      phone: user.phone,
-      avatar_url: user.avatar_url,
-      is_verified: user.is_verified,
-      profession: user.profession,
-      rating: user.rating,
-      completed_services: user.completed_services
-    };
+  id: user.id,
+  email: user.email,
+  name: user.name,
+  role: user.profession ? 'worker' : user.role, // ← Detectar por profesión
+  phone: user.phone,
+  avatar_url: user.avatar_url,
+  is_verified: user.is_verified,
+  profession: user.profession,
+  rating: user.rating
+};
+
 
     res.json({
       message: 'Login exitoso',

@@ -1,23 +1,58 @@
-import { Redirect } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
-import LoadingScreen from './common/loading';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { View, ActivityIndicator, Text } from 'react-native';
 
 export default function Index() {
-  const { user, loading } = useAuth();
+  const { user, loading, isAuthenticated } = useAuth();
+  const [hasChecked, setHasChecked] = useState(false);
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  useEffect(() => {
+    console.log('🏠 Index - Estado actual:', { 
+      user: user?.email, 
+      role: user?.role, 
+      loading, 
+      isAuthenticated,
+      hasChecked 
+    });
+    
+    if (!loading) {
+      console.log('🔄 Procesando redirección...');
+      
+      // Pequeño delay para asegurar que todo esté listo
+      const timer = setTimeout(() => {
+        if (!user) {
+          console.log('➡️ No hay usuario, redirigiendo a login');
+          router.replace('/auth/login');
+        } else if (user.role === 'client') {
+          console.log('➡️ Usuario cliente, redirigiendo a /client');
+          router.replace('/client');
+        } else if (user.role === 'worker') {
+          console.log('➡️ Usuario trabajador, redirigiendo a /worker');
+          router.replace('/worker');
+        } else {
+          console.log('❌ Rol no reconocido, redirigiendo a login');
+          router.replace('/auth/login');
+        }
+        setHasChecked(true);
+      }, 100);
 
-  if (!user) {
-    return <Redirect href={'/auth/login' as any} />;
-  }
+      return () => clearTimeout(timer);
+    }
+  }, [user, loading, isAuthenticated, hasChecked]);
 
-  if (user.role === 'client') {
-    return <Redirect href={'/client' as any} />;
-  } else if (user.role === 'worker') {
-    return <Redirect href={'/worker' as any} />;
-  }
+  console.log('🎬 Renderizando Index...');
 
-  return <Redirect href={'/auth/login' as any} />;
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" color="#007AFF" />
+      <Text style={{ marginTop: 10 }}>Verificando autenticación...</Text>
+      <Text style={{ marginTop: 5, fontSize: 12, color: '#666' }}>
+        {user ? `Usuario: ${user.role}` : 'Sin usuario'}
+      </Text>
+      <Text style={{ marginTop: 5, fontSize: 10, color: '#999' }}>
+        Loading: {loading ? 'Sí' : 'No'}
+      </Text>
+    </View>
+  );
 }
