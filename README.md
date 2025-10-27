@@ -2,7 +2,7 @@
 Una aplicación móvil para conectar clientes con trabajadores de servicios del hogar.
 
 📋 Características
-👥 Tres tipos de usuarios: Clientes, Trabajadores, Administradores
+👥 Tres tipos de usuarios: Clientes, Trabajadores, Trabajadores Inmediatos
 🔐 Autenticación JWT segura
 📅 Sistema de turnos programados
 🚀 Servicio inmediato para emergencias
