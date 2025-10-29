@@ -16,13 +16,22 @@ interface LoginForm {
   password: string;
 }
 
+interface FormErrors {
+  email?: string;
+  password?: string;
+}
+
 export default function LoginScreen() {
   const [formData, setFormData] = useState<LoginForm>({
     email: '',
     password: ''
   });
+  
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [loginSuccess, setLoginSuccess] = useState<boolean>(false);
+  const [apiError, setApiError] = useState<string>(''); // ✅ Para mostrar errores debajo del formulario
   const { login, user, isAuthenticated } = useAuth();
 
   // Efecto para redirigir cuando la autenticación es exitosa
@@ -46,15 +55,84 @@ export default function LoginScreen() {
     }
   }, [loginSuccess, user, isAuthenticated]);
 
-  const handleLogin = async (): Promise<void> => {
-    if (!formData.email.trim() || !formData.password.trim()) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
-      return;
-    }
+  // ✅ Validaciones individuales por campo
+  const validateField = (field: keyof LoginForm, value: string): string => {
+    switch (field) {
+      case 'email':
+        if (!value.trim()) return 'El email es requerido';
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) return 'Email no válido';
+        return '';
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email.trim())) {
-      Alert.alert('Error', 'Por favor ingresa un email válido');
+      case 'password':
+        if (!value) return 'La contraseña es requerida';
+        if (value.length < 6) return 'Mínimo 6 caracteres';
+        return '';
+
+      default:
+        return '';
+    }
+  };
+
+  // ✅ Validar todo el formulario
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+    let isValid = true;
+
+    (Object.keys(formData) as Array<keyof LoginForm>).forEach(field => {
+      const error = validateField(field, formData[field]);
+      if (error) {
+        newErrors[field] = error;
+        isValid = false;
+      }
+    });
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  // ✅ Manejar cambios en los campos con validación en tiempo real
+  const handleFieldChange = (field: keyof LoginForm, value: string): void => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Limpiar error de API cuando el usuario empiece a escribir
+    if (apiError) {
+      setApiError('');
+    }
+    
+    // Si el campo ha sido tocado, validar en tiempo real
+    if (touched[field]) {
+      const error = validateField(field, value);
+      setErrors(prev => ({
+        ...prev,
+        [field]: error
+      }));
+    }
+  };
+
+  // ✅ Marcar campo como tocado
+  const handleFieldBlur = (field: keyof LoginForm): void => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    const error = validateField(field, formData[field]);
+    setErrors(prev => ({
+      ...prev,
+      [field]: error
+    }));
+  };
+
+  const handleLogin = async (): Promise<void> => {
+    // Limpiar error de API previo
+    setApiError('');
+    
+    // Marcar todos los campos como tocados
+    const allTouched: Record<string, boolean> = {};
+    (Object.keys(formData) as Array<keyof LoginForm>).forEach(field => {
+      allTouched[field] = true;
+    });
+    setTouched(allTouched);
+
+    if (!validateForm()) {
+      Alert.alert('Error', 'Por favor corrige los errores en el formulario');
       return;
     }
 
@@ -74,29 +152,15 @@ export default function LoginScreen() {
       
       let errorMessage = 'Error al iniciar sesión';
       
+      // ✅ MEJOR MANEJO DE ERRORES - Mostrar directamente el mensaje del backend
       if (error.message) {
-        const errorMsgLower = error.message.toLowerCase();
-        
-        if (errorMsgLower.includes('no existe') || 
-            errorMsgLower.includes('not found') ||
-            errorMsgLower.includes('usuario no encontrado') ||
-            errorMsgLower.includes('user not found') ||
-            errorMsgLower.includes('invalid credentials') ||
-            errorMsgLower.includes('credenciales inválidas')) {
-          errorMessage = 'El usuario no existe. Por favor verifica tu email o regístrate.';
-        } else if (errorMsgLower.includes('password') || 
-                   errorMsgLower.includes('contraseña') ||
-                   errorMsgLower.includes('incorrect')) {
-          errorMessage = 'Contraseña incorrecta. Por favor intenta nuevamente.';
-        } else if (errorMsgLower.includes('network') || 
-                   errorMsgLower.includes('red') ||
-                   errorMsgLower.includes('connection')) {
-          errorMessage = 'Error de conexión. Verifica tu internet e intenta nuevamente.';
-        } else {
-          errorMessage = error.message;
-        }
+        errorMessage = error.message; // Esto mostrará "Credenciales inválidas"
       }
       
+      // ✅ Mostrar error debajo del formulario en lugar de Alert
+      setApiError(errorMessage);
+      
+      // También mantener el Alert por si acaso
       Alert.alert('Error de autenticación', errorMessage);
       
     } finally {
@@ -104,12 +168,8 @@ export default function LoginScreen() {
     }
   };
 
-  const updateField = (field: keyof LoginForm, value: string): void => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
   const handleSubmitEditing = () => {
-    if (formData.email && formData.password) {
+    if (formData.email && formData.password && !loading) {
       handleLogin();
     }
   };
@@ -119,29 +179,44 @@ export default function LoginScreen() {
       <Text style={styles.title}>QuickService Pro</Text>
       <Text style={styles.subtitle}>Inicia sesión en tu cuenta</Text>
       
+      {/* Campo Email */}
+      <Text style={styles.label}>Email</Text>
       <TextInput
-        style={styles.input}
-        placeholder="Email"
+        style={[styles.input, errors.email && styles.inputError]}
+        placeholder="Ej: usuario@ejemplo.com"
         value={formData.email}
-        onChangeText={(value) => updateField('email', value)}
+        onChangeText={(value) => handleFieldChange('email', value)}
+        onBlur={() => handleFieldBlur('email')}
         autoCapitalize="none"
         keyboardType="email-address"
         placeholderTextColor="#999"
         returnKeyType="next"
         editable={!loading}
       />
+      {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
       
+      {/* Campo Contraseña */}
+      <Text style={styles.label}>Contraseña</Text>
       <TextInput
-        style={styles.input}
-        placeholder="Contraseña"
+        style={[styles.input, errors.password && styles.inputError]}
+        placeholder="Mínimo 6 caracteres"
         value={formData.password}
-        onChangeText={(value) => updateField('password', value)}
+        onChangeText={(value) => handleFieldChange('password', value)}
+        onBlur={() => handleFieldBlur('password')}
         secureTextEntry
         placeholderTextColor="#999"
         returnKeyType="done"
         onSubmitEditing={handleSubmitEditing}
         editable={!loading}
       />
+      {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+      
+      {/* ✅ Mostrar error de API debajo del formulario */}
+      {apiError && (
+        <View style={styles.apiErrorContainer}>
+          <Text style={styles.apiErrorText}>❌ {apiError}</Text>
+        </View>
+      )}
       
       <TouchableOpacity 
         style={[styles.button, loading && styles.buttonDisabled]} 
@@ -157,13 +232,13 @@ export default function LoginScreen() {
       
       <TouchableOpacity 
         style={[styles.linkButton, loading && styles.linkButtonDisabled]}
-        onPress={() => !loading && router.push('/auth/register')}
+        onPress={() => !loading && router.replace('/auth/register')}
         disabled={loading}
       >
         <Text style={styles.linkText}>¿No tienes cuenta? Regístrate aquí</Text>
       </TouchableOpacity>
 
-      {/* Sección de debug */}
+      {/* Sección de debug (opcional - puedes quitarla) */}
       <View style={styles.debugSection}>
         <Text style={styles.debugTitle}>Estado:</Text>
         <Text style={styles.debugText}>Autenticado: {isAuthenticated ? 'Sí' : 'No'}</Text>
@@ -195,20 +270,52 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     color: '#666',
   },
+  label: {
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+    fontSize: 16,
+  },
   input: {
     backgroundColor: 'white',
     borderWidth: 1,
     borderColor: '#ddd',
     padding: 15,
-    marginBottom: 15,
+    marginBottom: 5,
     borderRadius: 8,
     fontSize: 16,
+  },
+  inputError: {
+    borderColor: '#DC3545',
+    backgroundColor: '#FFF5F5',
+  },
+  errorText: {
+    color: '#DC3545',
+    fontSize: 12,
+    marginBottom: 15,
+    marginTop: 2,
+  },
+  // ✅ Nuevos estilos para error de API
+  apiErrorContainer: {
+    backgroundColor: '#FFF5F5',
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#DC3545',
+    marginBottom: 15,
+  },
+  apiErrorText: {
+    color: '#DC3545',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   button: {
     backgroundColor: '#007AFF',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
+    marginTop: 10,
     marginBottom: 15,
     flexDirection: 'row',
     justifyContent: 'center',

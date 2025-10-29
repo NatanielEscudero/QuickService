@@ -48,14 +48,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     checkAuthState();
   }, []);
 
+  // 🔥 NUEVO: Effect para debug del estado de autenticación
+  useEffect(() => {
+    console.log('🔄 AuthContext actualizado:', { 
+      user: user?.email, 
+      role: user?.role, 
+      isAuthenticated: !!user && !!token,
+      loading 
+    });
+  }, [user, token, loading]);
+
   const checkAuthState = async (): Promise<void> => {
     try {
       const storedToken = await AsyncStorage.getItem('userToken');
       const storedUser = await AsyncStorage.getItem('userData');
 
+      console.log('📦 Datos almacenados encontrados:', { 
+        hasToken: !!storedToken, 
+        hasUser: !!storedUser 
+      });
+
       if (storedToken && storedUser) {
+        const parsedUser = JSON.parse(storedUser);
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        setUser(parsedUser);
+        console.log('✅ Usuario restaurado desde storage:', parsedUser.role);
       }
     } catch (error) {
       console.error('Error checking auth state:', error);
@@ -70,29 +87,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
       
+      console.log('🔐 Iniciando proceso de login...');
       const response = await authAPI.login(email, password);
       
-      setUser(response.user);
-      setToken(response.token);
-      
-      await AsyncStorage.setItem('userToken', response.token);
-      await AsyncStorage.setItem('userData', JSON.stringify(response.user));
-      
-    } catch (error: any) {
-      const errorMessage = handleAPIError(error);
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const register = async (userData: any): Promise<void> => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await authAPI.register(userData);
+      console.log('✅ Respuesta del servidor:', { 
+        user: response.user, 
+        hasToken: !!response.token 
+      });
       
       setUser(response.user);
       setToken(response.token);
@@ -100,43 +101,80 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await AsyncStorage.setItem('userToken', response.token);
       await AsyncStorage.setItem('userData', JSON.stringify(response.user));
       
+      console.log('💾 Datos guardados en storage');
+      
     } catch (error: any) {
       const errorMessage = handleAPIError(error);
       setError(errorMessage);
+      console.error('❌ Error en login:', errorMessage);
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = async (): Promise<void> => {
+ const register = async (userData: any): Promise<User> => { // ✅ Ahora retorna User
   try {
-    console.log('🚪 AuthContext: Iniciando logout...');
-    
-    // 1. Limpiar AsyncStorage PRIMERO
-    await AsyncStorage.multiRemove(['userToken', 'userData']);
-    console.log('✅ AuthContext: AsyncStorage limpiado');
-    
-    // 2. Luego limpiar estado
-    setUser(null);
-    setToken(null);
+    setLoading(true);
     setError(null);
     
-    console.log('✅ AuthContext: Estado limpiado');
-    console.log('✅ AuthContext: Logout completado exitosamente');
+    console.log('📝 Enviando datos de registro al backend:', userData);
     
-  } catch (error) {
-    console.error('❌ AuthContext: Error durante logout:', error);
-    // Limpiar estado incluso si hay error con AsyncStorage
-    setUser(null);
-    setToken(null);
-    setError(null);
-    throw error; // ✅ IMPORTANTE: Propagar el error
+    const response = await authAPI.register(userData);
+    
+    console.log('✅ Registro exitoso - respuesta del backend:', { 
+      user: response.user, 
+      hasToken: !!response.token 
+    });
+    
+    setUser(response.user);
+    setToken(response.token);
+    
+    await AsyncStorage.setItem('userToken', response.token);
+    await AsyncStorage.setItem('userData', JSON.stringify(response.user));
+    
+    console.log('💾 Datos de registro guardados en storage');
+    console.log('✅ Registro completado - usuario:', response.user.role);
+    
+    // ✅ RETORNAR el usuario para redirección inmediata
+    return response.user;
+    
+  } catch (error: any) {
+    const errorMessage = handleAPIError(error);
+    console.error('❌ Error en registro:', errorMessage);
+    setError(errorMessage);
+    throw new Error(errorMessage);
+  } finally {
+    setLoading(false);
   }
 };
 
+  const logout = async (): Promise<void> => {
+    try {
+      console.log('🚪 AuthContext: Iniciando logout...');
+      
+      // 1. Limpiar AsyncStorage PRIMERO
+      await AsyncStorage.multiRemove(['userToken', 'userData']);
+      console.log('✅ AuthContext: AsyncStorage limpiado');
+      
+      // 2. Luego limpiar estado
+      setUser(null);
+      setToken(null);
+      setError(null);
+      
+      console.log('✅ AuthContext: Estado limpiado');
+      console.log('✅ AuthContext: Logout completado exitosamente');
+      
+    } catch (error) {
+      console.error('❌ AuthContext: Error durante logout:', error);
+      // Limpiar estado incluso si hay error con AsyncStorage
+      setUser(null);
+      setToken(null);
+      setError(null);
+      throw error;
+    }
+  };
 
-  // 🔥 FUNCIÓN updateUser QUE FALTABA
   const updateUser = async (updatedUser: User): Promise<void> => {
     try {
       setUser(updatedUser);
@@ -159,7 +197,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
-    updateUser, // ✅ AHORA SÍ ESTÁ INCLUIDA
+    updateUser,
     isAuthenticated: !!user && !!token,
     error,
     clearError
