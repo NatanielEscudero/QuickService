@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { promisePool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const GoogleAuthController = require('../controllers/googleAuth');
 
 const router = express.Router();
 
@@ -168,6 +169,89 @@ router.get('/verify', authenticateToken, (req, res) => {
     valid: true, 
     user: req.user 
   });
+});
+
+// Login/Registro con Google
+router.post('/google', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token de Google es requerido' });
+    }
+
+    // Verificar token de Google
+    const verification = await GoogleAuthController.verifyGoogleToken(token);
+    
+    if (!verification.success) {
+      return res.status(401).json({ error: verification.error });
+    }
+
+    const googleUser = verification.payload;
+
+    // Buscar o crear usuario
+    const user = await GoogleAuthController.findOrCreateUser(googleUser);
+
+    // Generar token JWT
+    const jwtToken = GoogleAuthController.generateToken(user);
+
+    // Preparar respuesta
+    const userResponse = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      phone: user.phone,
+      avatar_url: user.avatar_url,
+      is_verified: user.email_verified,
+      auth_provider: user.auth_provider,
+      profession: user.profession,
+      rating: user.rating
+    };
+
+    res.json({
+      message: 'Autenticación con Google exitosa',
+      token: jwtToken,
+      user: userResponse
+    });
+
+  } catch (error) {
+    console.error('Error en autenticación con Google:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Verificar si el email de Google ya está registrado
+router.post('/google/check', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email es requerido' });
+    }
+
+    const [users] = await promisePool.execute(
+      'SELECT id, email, auth_provider FROM users WHERE email = ?',
+      [email]
+    );
+
+    if (users.length > 0) {
+      const user = users[0];
+      return res.json({
+        exists: true,
+        auth_provider: user.auth_provider,
+        message: user.auth_provider === 'local' 
+          ? 'Este email ya está registrado con contraseña. ¿Quieres iniciar sesión con tu contraseña?'
+          : 'Este email ya está registrado con Google'
+      });
+    }
+
+    res.json({ exists: false });
+
+  } catch (error) {
+    console.error('Error verificando email:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 module.exports = router;

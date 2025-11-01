@@ -1,19 +1,23 @@
 {
   "expo": {
-    "name": "Proyecto_Final",
-    "slug": "Proyecto_Final",
+    "name": "QuickService Pro",
+    "slug": "quickservice-pro",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "proyectofinal",
+    "scheme": "quickservice",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.quickservice.pro"
     },
+    
     "android": {
+      "package": "com.quickservice.pro",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#007AFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -21,10 +25,18 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
+    
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "QuickService Pro",
+      "shortName": "QuickService",
+      "lang": "es",
+      "scope": "/",
+      "themeColor": "#007AFF",
+      "backgroundColor": "#ffffff"
     },
+    
     "plugins": [
       "expo-router",
       [
@@ -39,11 +51,24 @@
           }
         }
       ],
-      "expo-web-browser"
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.584687367545-o8tunkjli3m774l3l9tesfc1fcofhob6",
+          "androidClientId": "584687367545-o8tunkjli3m774l3l9tesfc1fcofhob6.apps.googleusercontent.com"
+        }
+      ]
     ],
+    
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      }
     }
   }
 }

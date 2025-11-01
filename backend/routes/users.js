@@ -66,6 +66,174 @@ router.get('/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// PUT /api/users/update-role - Actualizar rol del usuario
+// PUT /api/users/update-role - Actualizar rol del usuario
+router.put('/update-role', authenticateToken, async (req, res) => {
+  try {
+    const { role } = req.body;
+    const userId = req.user.id;
+
+    // Validar rol
+    if (!['client', 'worker'].includes(role)) {
+      return res.status(400).json({ error: 'Rol inválido' });
+    }
+
+    // Actualizar rol del usuario
+    await promisePool.execute(
+      'UPDATE users SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [role, userId]
+    );
+
+    // ❌ ELIMINAR: No crear registro en workers automáticamente
+    // El registro se creará cuando seleccione la profesión
+    // if (role === 'worker') {
+    //   const [existingWorker] = await promisePool.execute(
+    //     'SELECT id FROM workers WHERE user_id = ?',
+    //     [userId]
+    //   );
+    // 
+    //   if (existingWorker.length === 0) {
+    //     await promisePool.execute(
+    //       'INSERT INTO workers (user_id, profession, availability) VALUES (?, "General", "available")',
+    //       [userId]
+    //     );
+    //   }
+    // }
+
+    // Obtener usuario actualizado
+    const [users] = await promisePool.execute(`
+      SELECT u.*, w.profession, w.rating 
+      FROM users u 
+      LEFT JOIN workers w ON u.id = w.user_id 
+      WHERE u.id = ?
+    `, [userId]);
+
+    const updatedUser = users[0];
+
+    res.json({
+      message: 'Rol actualizado correctamente',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        phone: updatedUser.phone,
+        avatar_url: updatedUser.avatar_url,
+        is_verified: updatedUser.is_verified,
+        auth_provider: updatedUser.auth_provider,
+        profession: updatedUser.profession,
+        rating: updatedUser.rating
+      }
+    });
+
+  } catch (error) {
+    console.error('Error actualizando rol:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ✅ PASO 4 IMPLEMENTADO: PUT /api/users/update-profession - Actualizar profesión del trabajador
+// PUT /api/users/update-profession - Actualizar profesión del trabajador
+router.put('/update-profession', authenticateToken, async (req, res) => {
+  try {
+    const { profession, description } = req.body;
+    const userId = req.user.id;
+
+    console.log('🎯 Actualizando profesión para usuario:', userId, 'Profesión:', profession);
+    console.log('📝 Datos recibidos:', { profession, description, userId });
+
+    if (!profession) {
+      console.log('❌ Error: Profesión requerida');
+      return res.status(400).json({ error: 'La profesión es requerida' });
+    }
+
+    // Verificar que el usuario sea worker
+    const [userCheck] = await promisePool.execute(
+      'SELECT role FROM users WHERE id = ?',
+      [userId]
+    );
+
+    console.log('🔍 Verificación de usuario:', userCheck);
+
+    if (userCheck.length === 0) {
+      console.log('❌ Error: Usuario no encontrado');
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    if (userCheck[0].role !== 'worker') {
+      console.log('❌ Error: Usuario no es worker, rol actual:', userCheck[0].role);
+      return res.status(400).json({ error: 'Solo los trabajadores pueden actualizar su profesión' });
+    }
+
+    // Verificar si ya existe registro en workers
+    const [existingWorker] = await promisePool.execute(
+      'SELECT id FROM workers WHERE user_id = ?',
+      [userId]
+    );
+
+    console.log('🔍 Worker existente:', existingWorker);
+
+    if (existingWorker.length > 0) {
+      // Actualizar worker existente
+      console.log('🔄 Actualizando worker existente');
+      await promisePool.execute(
+        `UPDATE workers 
+         SET profession = ?, description = ?, updated_at = CURRENT_TIMESTAMP 
+         WHERE user_id = ?`,
+        [profession, description || `Soy ${profession} profesional`, userId]
+      );
+      console.log('✅ Profesión actualizada para worker existente');
+    } else {
+      // Crear nuevo registro en workers
+      console.log('🆕 Creando nuevo registro de worker');
+      await promisePool.execute(
+        `INSERT INTO workers (user_id, profession, description, availability) 
+         VALUES (?, ?, ?, 'available')`,
+        [userId, profession, description || `Soy ${profession} profesional`]
+      );
+      console.log('✅ Nuevo registro de worker creado con profesión:', profession);
+    }
+
+    // Obtener usuario actualizado
+    const [users] = await promisePool.execute(`
+      SELECT u.*, w.profession, w.description, w.rating, w.availability
+      FROM users u 
+      LEFT JOIN workers w ON u.id = w.user_id 
+      WHERE u.id = ?
+    `, [userId]);
+
+    const updatedUser = users[0];
+
+    console.log('✅ Profesión actualizada exitosamente para usuario:', updatedUser.email);
+
+    res.json({
+      message: 'Profesión actualizada correctamente',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        phone: updatedUser.phone,
+        avatar_url: updatedUser.avatar_url,
+        is_verified: updatedUser.is_verified,
+        auth_provider: updatedUser.auth_provider,
+        profession: updatedUser.profession,
+        description: updatedUser.description,
+        rating: updatedUser.rating,
+        availability: updatedUser.availability
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error completo actualizando profesión:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({ 
+      error: 'Error interno del servidor',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // PUT /api/users/profile - Actualizar perfil del usuario actual
 router.put('/profile', authenticateToken, async (req, res) => {
   try {

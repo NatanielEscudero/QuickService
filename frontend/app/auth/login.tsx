@@ -6,10 +6,12 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  ScrollView
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { router } from 'expo-router';
+import GoogleSignInButton from '../../src/components/GoogleSignInButton'; // ✅ NUEVO
 
 interface LoginForm {
   email: string;
@@ -31,7 +33,7 @@ export default function LoginScreen() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [loginSuccess, setLoginSuccess] = useState<boolean>(false);
-  const [apiError, setApiError] = useState<string>(''); // ✅ Para mostrar errores debajo del formulario
+  const [apiError, setApiError] = useState<string>('');
   const { login, user, isAuthenticated } = useAuth();
 
   // Efecto para redirigir cuando la autenticación es exitosa
@@ -152,20 +154,29 @@ export default function LoginScreen() {
       
       let errorMessage = 'Error al iniciar sesión';
       
-      // ✅ MEJOR MANEJO DE ERRORES - Mostrar directamente el mensaje del backend
       if (error.message) {
-        errorMessage = error.message; // Esto mostrará "Credenciales inválidas"
+        errorMessage = error.message;
       }
       
-      // ✅ Mostrar error debajo del formulario en lugar de Alert
       setApiError(errorMessage);
-      
-      // También mantener el Alert por si acaso
       Alert.alert('Error de autenticación', errorMessage);
       
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ NUEVO: Manejar éxito de Google Auth
+  const handleGoogleSuccess = (user: any) => {
+    console.log('✅ Login con Google exitoso:', user);
+    setLoginSuccess(true);
+  };
+
+  // ✅ NUEVO: Manejar error de Google Auth
+  const handleGoogleError = (error: string) => {
+    console.error('❌ Error en Google Auth:', error);
+    setApiError(error);
+    Alert.alert('Error de Google', error);
   };
 
   const handleSubmitEditing = () => {
@@ -175,82 +186,103 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>QuickService Pro</Text>
-      <Text style={styles.subtitle}>Inicia sesión en tu cuenta</Text>
-      
-      {/* Campo Email */}
-      <Text style={styles.label}>Email</Text>
-      <TextInput
-        style={[styles.input, errors.email && styles.inputError]}
-        placeholder="Ej: usuario@ejemplo.com"
-        value={formData.email}
-        onChangeText={(value) => handleFieldChange('email', value)}
-        onBlur={() => handleFieldBlur('email')}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        placeholderTextColor="#999"
-        returnKeyType="next"
-        editable={!loading}
-      />
-      {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-      
-      {/* Campo Contraseña */}
-      <Text style={styles.label}>Contraseña</Text>
-      <TextInput
-        style={[styles.input, errors.password && styles.inputError]}
-        placeholder="Mínimo 6 caracteres"
-        value={formData.password}
-        onChangeText={(value) => handleFieldChange('password', value)}
-        onBlur={() => handleFieldBlur('password')}
-        secureTextEntry
-        placeholderTextColor="#999"
-        returnKeyType="done"
-        onSubmitEditing={handleSubmitEditing}
-        editable={!loading}
-      />
-      {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-      
-      {/* ✅ Mostrar error de API debajo del formulario */}
-      {apiError && (
-        <View style={styles.apiErrorContainer}>
-          <Text style={styles.apiErrorText}>❌ {apiError}</Text>
+    <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <View style={styles.container}>
+        <Text style={styles.title}>QuickService Pro</Text>
+        <Text style={styles.subtitle}>Inicia sesión en tu cuenta</Text>
+        
+        {/* ✅ NUEVO: Botón de Google */}
+        <View style={styles.socialLoginSection}>
+          <Text style={styles.socialLoginText}>O inicia sesión con</Text>
+          <GoogleSignInButton 
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+          />
         </View>
-      )}
-      
-      <TouchableOpacity 
-        style={[styles.button, loading && styles.buttonDisabled]} 
-        onPress={handleLogin}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="white" size="small" />
-        ) : (
-          <Text style={styles.buttonText}>Iniciar Sesión</Text>
-        )}
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={[styles.linkButton, loading && styles.linkButtonDisabled]}
-        onPress={() => !loading && router.replace('/auth/register')}
-        disabled={loading}
-      >
-        <Text style={styles.linkText}>¿No tienes cuenta? Regístrate aquí</Text>
-      </TouchableOpacity>
 
-      {/* Sección de debug (opcional - puedes quitarla) */}
-      <View style={styles.debugSection}>
-        <Text style={styles.debugTitle}>Estado:</Text>
-        <Text style={styles.debugText}>Autenticado: {isAuthenticated ? 'Sí' : 'No'}</Text>
-        <Text style={styles.debugText}>Usuario: {user ? user.role : 'Ninguno'}</Text>
-        <Text style={styles.debugText}>Login Success: {loginSuccess ? 'Sí' : 'No'}</Text>
-        <Text style={styles.debugText}>Loading: {loading ? 'Sí' : 'No'}</Text>
+        <View style={styles.separator}>
+          <View style={styles.separatorLine} />
+          <Text style={styles.separatorText}>o</Text>
+          <View style={styles.separatorLine} />
+        </View>
+        
+        {/* Campo Email */}
+        <Text style={styles.label}>Email</Text>
+        <TextInput
+          style={[styles.input, errors.email && styles.inputError]}
+          placeholder="Ej: usuario@ejemplo.com"
+          value={formData.email}
+          onChangeText={(value) => handleFieldChange('email', value)}
+          onBlur={() => handleFieldBlur('email')}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          placeholderTextColor="#999"
+          returnKeyType="next"
+          editable={!loading}
+        />
+        {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+        
+        {/* Campo Contraseña */}
+        <Text style={styles.label}>Contraseña</Text>
+        <TextInput
+          style={[styles.input, errors.password && styles.inputError]}
+          placeholder="Mínimo 6 caracteres"
+          value={formData.password}
+          onChangeText={(value) => handleFieldChange('password', value)}
+          onBlur={() => handleFieldBlur('password')}
+          secureTextEntry
+          placeholderTextColor="#999"
+          returnKeyType="done"
+          onSubmitEditing={handleSubmitEditing}
+          editable={!loading}
+        />
+        {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+        
+        {/* ✅ Mostrar error de API debajo del formulario */}
+        {apiError && (
+          <View style={styles.apiErrorContainer}>
+            <Text style={styles.apiErrorText}>❌ {apiError}</Text>
+          </View>
+        )}
+        
+        <TouchableOpacity 
+          style={[styles.button, loading && styles.buttonDisabled]} 
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="white" size="small" />
+          ) : (
+            <Text style={styles.buttonText}>Iniciar Sesión</Text>
+          )}
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.linkButton, loading && styles.linkButtonDisabled]}
+          onPress={() => !loading && router.replace('/auth/register')}
+          disabled={loading}
+        >
+          <Text style={styles.linkText}>¿No tienes cuenta? Regístrate aquí</Text>
+        </TouchableOpacity>
+
+        {/* Sección de debug (opcional - puedes quitarla) */}
+        <View style={styles.debugSection}>
+          <Text style={styles.debugTitle}>Estado:</Text>
+          <Text style={styles.debugText}>Autenticado: {isAuthenticated ? 'Sí' : 'No'}</Text>
+          <Text style={styles.debugText}>Usuario: {user ? user.role : 'Ninguno'}</Text>
+          <Text style={styles.debugText}>Login Success: {loginSuccess ? 'Sí' : 'No'}</Text>
+          <Text style={styles.debugText}>Loading: {loading ? 'Sí' : 'No'}</Text>
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   container: {
     flex: 1,
     justifyContent: 'center',
@@ -267,8 +299,33 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: 30,
     color: '#666',
+  },
+  // ✅ NUEVOS ESTILOS PARA GOOGLE AUTH
+  socialLoginSection: {
+    marginBottom: 25,
+  },
+  socialLoginText: {
+    textAlign: 'center',
+    marginBottom: 15,
+    color: '#666',
+    fontSize: 14,
+  },
+  separator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 25,
+  },
+  separatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ddd',
+  },
+  separatorText: {
+    marginHorizontal: 15,
+    color: '#666',
+    fontSize: 14,
   },
   label: {
     fontWeight: 'bold',
@@ -295,7 +352,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     marginTop: 2,
   },
-  // ✅ Nuevos estilos para error de API
   apiErrorContainer: {
     backgroundColor: '#FFF5F5',
     padding: 12,
