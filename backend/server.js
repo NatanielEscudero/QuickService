@@ -2,17 +2,69 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 
-// Middleware de seguridad
-app.use(helmet());
+// Asegurar que los directorios de uploads existan
+const uploadDirs = ['uploads', 'uploads/avatars'];
+uploadDirs.forEach(dir => {
+  const dirPath = path.join(__dirname, dir);
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+    console.log(`✅ Directorio creado: ${dirPath}`);
+  }
+});
 
-// Configurar CORS para React Native - MÁS PERMISIVO PARA DESARROLLO
+// Middleware de seguridad - CONFIGURAR HELMET PARA PERMITIR IMÁGENES
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" } // ← ESTA LÍNEA ES CRÍTICA
+}));
+
+// Configurar CORS mejorado
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:8081', 
+  'http://localhost:19006',
+  'exp://localhost:19000',
+  'http://192.168.1.*:8081',
+  'http://192.168.0.*:8081'
+];
+
 app.use(cors({
-  origin: '*', // En producción cambiar a dominios específicos
-  credentials: true
+  origin: function (origin, callback) {
+    // Permitir requests sin origin (como mobile apps, Postman)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.some(allowed => {
+      if (allowed.includes('*')) {
+        const pattern = allowed.replace('*', '.*');
+        return new RegExp(pattern).test(origin);
+      }
+      return origin === allowed;
+    }) || origin.includes('localhost') || origin.includes('192.168.')) {
+      callback(null, true);
+    } else {
+      console.log('🚫 CORS bloqueado para origen:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin']
+}));
+
+// SERVIR ARCHIVOS ESTÁTICOS - CONFIGURACIÓN MEJORADA
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res, path) => {
+    // Headers específicos para imágenes
+    if (path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.png') || path.endsWith('.gif')) {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+  }
 }));
 
 // Rate limiting
@@ -26,7 +78,7 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Conexión a la base de datos
+// Resto de tu código permanece igual...
 const db = require('./config/database');
 
 // Test database connection
@@ -39,10 +91,11 @@ db.getConnection((err, connection) => {
   connection.release();
 });
 
-// Routes - IMPORTANTE: Agregar users
+// Routes
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/users', require('./routes/users')); // ← NUEVA LÍNEA
+app.use('/api/users', require('./routes/users'));
 app.use('/api/categories', require('./routes/categories'));
+app.use('/api/appointments', require('./routes/appointments'));
 
 // Ruta de health check
 app.get('/api/health', (req, res) => {
@@ -65,6 +118,22 @@ app.get('/api/test-users', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Error testeando users: ' + error.message });
   }
+});
+
+// Ruta específica para servir avatares
+app.get('/uploads/avatars/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, 'uploads', 'avatars', filename);
+  
+  // Verificar que el archivo existe
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Avatar no encontrado' });
+  }
+  
+  // Enviar el archivo con headers CORS
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.sendFile(filePath);
 });
 
 // Manejo de rutas no encontradas
@@ -95,4 +164,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📊 Entorno: ${process.env.NODE_ENV}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
   console.log(`👥 Test users: http://localhost:${PORT}/api/test-users`);
+  console.log(`📁 Uploads disponibles en: http://localhost:${PORT}/uploads/`);
+  console.log(`🖼️  Avatares disponibles en: http://localhost:${PORT}/uploads/avatars/`);
 });
