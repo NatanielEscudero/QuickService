@@ -21,21 +21,18 @@ interface UserProfile {
   name: string;
   email: string;
   phone: string;
-  profession: string;
   description: string;
   avatar_url?: string;
 }
 
-export default function WorkerProfileScreen() {
+export default function ProfileScreen() {
   const router = useRouter();
   const { user, updateUser, logout, isAuthenticated } = useAuth();
   const [profile, setProfile] = useState<UserProfile>({
     name: '',
     email: '',
     phone: '',
-    profession: '',
-    description: '',
-    avatar_url: ''
+    description: ''
   });
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -47,7 +44,7 @@ export default function WorkerProfileScreen() {
   const [showAvatarOptions, setShowAvatarOptions] = useState(false);
 
   useEffect(() => {
-    console.log('🎯 WorkerProfileScreen - Estado actual:', {
+    console.log('🎯 Client ProfileScreen - Estado actual:', {
       user: user,
       isAuthenticated: isAuthenticated,
       loading: loading
@@ -74,13 +71,12 @@ export default function WorkerProfileScreen() {
         return;
       }
 
-      console.log('✅ Cargando perfil para usuario:', user);
+      console.log('✅ Cargando perfil para cliente:', user);
       
       setProfile({
         name: user.name || '',
         email: user.email || '',
         phone: user.phone || '',
-        profession: user.profession || '',
         description: user.description || '',
         avatar_url: user.avatar_url || ''
       });
@@ -89,12 +85,6 @@ export default function WorkerProfileScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // FUNCIÓN FALTANTE AÑADIDA - Esta es la que hace funcionar la edición
-  const startEditing = (field: string, value: string) => {
-    setEditingField(field);
-    setEditValue(value || '');
   };
 
   // Función para seleccionar imagen de la galería
@@ -141,7 +131,7 @@ export default function WorkerProfileScreen() {
     }
   };
 
-  // Función para subir el avatar al servidor
+  // FUNCIÓN CORREGIDA: Subir avatar REAL al servidor
   const uploadAvatar = async (imageUri: string) => {
     try {
       setUploadingAvatar(true);
@@ -196,56 +186,42 @@ export default function WorkerProfileScreen() {
     }
   };
 
+  const startEditing = (field: string, value: string) => {
+    setEditingField(field);
+    setEditValue(value || '');
+  };
+
+  // FUNCIÓN CORREGIDA: Mejor manejo de errores
   const saveProfile = async () => {
     if (!editingField) return;
 
     try {
       setSaving(true);
       
-      const updateData: any = {};
-      const trimmedValue = editValue.trim();
-      
-      switch (editingField) {
-        case 'name':
-          updateData.name = trimmedValue;
-          break;
-        case 'email':
-          updateData.email = trimmedValue;
-          break;
-        case 'phone':
-          updateData.phone = trimmedValue;
-          break;
-        case 'profession':
-          updateData.profession = trimmedValue;
-          break;
-        case 'description':
-          updateData.description = trimmedValue;
-          break;
-      }
+      // Enviar SOLO el campo que se está editando
+      const updateData = {
+        [editingField]: editValue.trim()
+      };
 
       console.log('📤 Enviando datos al backend:', updateData);
       console.log('🔑 Usuario actual:', user?.id);
 
-      if (editingField === 'name' && !trimmedValue) {
+      // Validación solo para nombre
+      if (editingField === 'name' && !editValue.trim()) {
         Alert.alert('Error', 'El nombre no puede estar vacío');
         setSaving(false);
         return;
       }
 
-      // DEBUG: Ver qué está pasando con la API
-      console.log('🔄 Llamando a clientAPI.updateUserProfile...');
-      console.log('📝 Datos enviados:', JSON.stringify(updateData));
-      
       const response = await clientAPI.updateUserProfile(updateData);
       
       console.log('✅ Respuesta del backend:', response);
 
       if (response.user) {
         await updateUser(response.user);
-        
         setProfile(prev => ({
           ...prev,
-          [editingField]: trimmedValue
+          [editingField]: editValue.trim()
         }));
       }
 
@@ -291,7 +267,6 @@ export default function WorkerProfileScreen() {
       name: 'Nombre',
       email: 'Email',
       phone: 'Teléfono',
-      profession: 'Profesión',
       description: 'Descripción'
     };
     return labels[field] || field;
@@ -302,8 +277,7 @@ export default function WorkerProfileScreen() {
       name: 'Ingresa tu nombre completo',
       email: 'Ingresa tu email',
       phone: 'Ingresa tu teléfono',
-      profession: 'Ej: Plomero, Electricista, etc.',
-      description: 'Describe tus servicios y experiencia'
+      description: 'Cuéntanos sobre ti...'
     };
     return placeholders[field] || '';
   };
@@ -311,7 +285,7 @@ export default function WorkerProfileScreen() {
   if (!user || loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#28A745" />
+        <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>Cargando perfil...</Text>
       </View>
     );
@@ -354,26 +328,18 @@ export default function WorkerProfileScreen() {
           <Text style={styles.name}>{profile.name || 'Sin nombre'}</Text>
         </View>
         
-        <View style={styles.professionContainer}>
-          <Text style={styles.profession}>{profile.profession || 'Profesión no especificada'}</Text>
+        <View style={styles.emailContainer}>
+          <Text style={styles.email}>{profile.email}</Text>
         </View>
         
         <View style={styles.roleContainer}>
-          <Text style={styles.role}>👷 Profesional</Text>
+          <Text style={styles.role}>
+            {user?.role === 'client' ? '👤 Cliente' : 
+             user?.role === 'worker' ? '👷 Profesional' : 
+             user?.role === 'admin' ? '👑 Administrador' : '👤 Usuario'}
+          </Text>
         </View>
-        
-        {profile.description ? (
-          <View style={styles.descriptionContainer}>
-            <Text style={styles.description}>{profile.description}</Text>
-          </View>
-        ) : (
-          <TouchableOpacity 
-            style={styles.addDescriptionButton}
-            onPress={() => startEditing('description', '')}
-          >
-            <Text style={styles.addDescriptionText}>+ Agregar descripción</Text>
-          </TouchableOpacity>
-        )}
+
       </View>
 
       {/* Información de contacto EDITABLE */}
@@ -401,16 +367,16 @@ export default function WorkerProfileScreen() {
           </TouchableOpacity>
         </View>
         
+        {/* EMAIL NO EDITABLE - CORREGIDO */}
         <View style={styles.infoItem}>
           <View style={styles.infoLabelContainer}>
             <Text style={styles.infoLabel}>Email</Text>
           </View>
-          
-            <View style={styles.infoValueContainer}>
-              <Text style={styles.infoValue}>
-                {profile.email || 'Agregar email'}
-              </Text>
-            </View>
+          <View style={styles.infoValueContainer}>
+            <Text style={styles.infoValue}>
+              {profile.email || 'Agregar email'}
+            </Text>
+          </View>
         </View>
         
         <View style={styles.infoItem}>
@@ -434,44 +400,16 @@ export default function WorkerProfileScreen() {
         
         <View style={styles.infoItem}>
           <View style={styles.infoLabelContainer}>
-            <Text style={styles.infoLabel}>Profesión</Text>
+            <Text style={styles.infoLabel}>Verificación</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.editableField}
-            onPress={() => startEditing('profession', profile.profession)}
-          >
-            <View style={styles.infoValueContainer}>
-              <Text style={styles.infoValue}>
-                {profile.profession || 'Agregar profesión'}
-              </Text>
-            </View>
-            <View style={styles.editIconContainer}>
-              <Text style={styles.editIcon}>✏️</Text>
-            </View>
-          </TouchableOpacity>
+          <View style={styles.infoValueContainer}>
+            <Text style={styles.infoValue}>
+              {user?.is_verified ? '✅ Verificado' : '❌ No verificado'}
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* Descripción EDITABLE */}
-      {profile.description && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleContainer}>
-              <Text style={styles.sectionTitle}>Sobre Mí</Text>
-            </View>
-            <TouchableOpacity 
-              onPress={() => startEditing('description', profile.description)}
-            >
-              <View style={styles.editIconContainer}>
-                <Text style={styles.editIcon}>✏️</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.descriptionTextContainer}>
-            <Text style={styles.descriptionText}>{profile.description}</Text>
-          </View>
-        </View>
-      )}
 
       {/* Botón para cerrar sesión */}
       <View style={styles.section}>
@@ -593,7 +531,7 @@ export default function WorkerProfileScreen() {
         </View>
       </Modal>
 
-      {/* Modal para opciones de avatar */}
+      {/* Modal para opciones de avatar - CORREGIDO */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -653,7 +591,7 @@ export default function WorkerProfileScreen() {
   );
 }
 
-// Agrega estos estilos faltantes al final
+// Agregar los estilos faltantes para las nuevas estructuras
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -676,7 +614,7 @@ const styles = StyleSheet.create({
   },
   profileSection: {
     backgroundColor: 'white',
-    padding: 20,
+    padding: 30,
     alignItems: 'center',
     marginBottom: 10,
   },
@@ -693,7 +631,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#28A745',
+    backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -717,7 +655,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 5,
     right: 5,
-    backgroundColor: '#28A745',
+    backgroundColor: '#007AFF',
     width: 30,
     height: 30,
     borderRadius: 15,
@@ -740,21 +678,21 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
   },
-  professionContainer: {
+  emailContainer: {
     marginBottom: 5,
   },
-  profession: {
+  email: {
     fontSize: 16,
-    color: '#28A745',
+    color: '#666',
     textAlign: 'center',
-    fontWeight: '500',
   },
   roleContainer: {
     marginBottom: 10,
   },
   role: {
     fontSize: 14,
-    color: '#666',
+    color: '#007AFF',
+    fontWeight: '500',
     textAlign: 'center',
   },
   descriptionContainer: {
@@ -771,7 +709,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   addDescriptionText: {
-    color: '#28A745',
+    color: '#007AFF',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -827,6 +765,18 @@ const styles = StyleSheet.create({
   editIcon: {
     fontSize: 16,
   },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  menuText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 10,
+  },
   descriptionTextContainer: {},
   descriptionText: {
     fontSize: 14,
@@ -834,7 +784,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   logoutButton: {
-    backgroundColor: '#DC3545',
+    backgroundColor: '#FF3B30',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
@@ -934,10 +884,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   saveButton: {
-    backgroundColor: '#28A745',
+    backgroundColor: '#007AFF',
   },
   logoutConfirmButton: {
-    backgroundColor: '#DC3545',
+    backgroundColor: '#FF3B30',
   },
   saveButtonDisabled: {
     backgroundColor: '#CCCCCC',

@@ -1,30 +1,36 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
 export const Colors = {
+  calPolyGreen: '#2a4d14',
+  lightGreen: '#a3f7b5',
+  gunmetal: '#022b3a',
+  celestialBlue: '#1e91d6',
+  sandyBrown: '#f0a868',
+  white: '#ffffff',
+  
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    primary: '#2a4d14', // calPolyGreen
+    secondary: '#1e91d6', // celestialBlue
+    accent: '#f0a868', // sandyBrown
+    background: '#a3f7b5', // lightGreen
+    text: '#022b3a', // gunmetal
+    surface: '#ffffff',
+    error: '#d32f2f',
+    warning: '#f0a868', // sandyBrown
+    success: '#2a4d14', // calPolyGreen
   },
+  
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
-  },
+    primary: '#a3f7b5', // lightGreen
+    secondary: '#1e91d6', // celestialBlue
+    accent: '#f0a868', // sandyBrown
+    background: '#022b3a', // gunmetal
+    text: '#ffffff',
+    surface: '#1a1a1a',
+    error: '#ef5350',
+    warning: '#f0a868', // sandyBrown
+    success: '#a3f7b5', // lightGreen
+  }
 };
 
 export const Fonts = Platform.select({

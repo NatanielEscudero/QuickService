@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -6,8 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Alert 
+  Alert,
+  ActivityIndicator,
+  Modal
 } from 'react-native';
+import { clientAPI } from '../../src/services/clientApi';
 
 interface TimeSlot {
   day: string;
@@ -16,17 +19,64 @@ interface TimeSlot {
   endTime: string;
 }
 
+interface AvailabilityData {
+  immediate_service: boolean;
+  time_slots: TimeSlot[];
+  coverage_radius: number;
+}
+
+interface AvailabilityStats {
+  active_days: number;
+  weekly_hours: number;
+  availability_percentage: number;
+}
+
 export default function WorkerAvailabilityScreen() {
   const [immediateService, setImmediateService] = useState(true);
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([
-    { day: 'Lunes', enabled: true, startTime: '09:00', endTime: '18:00' },
-    { day: 'Martes', enabled: true, startTime: '09:00', endTime: '18:00' },
-    { day: 'Miércoles', enabled: true, startTime: '09:00', endTime: '18:00' },
-    { day: 'Jueves', enabled: true, startTime: '09:00', endTime: '18:00' },
-    { day: 'Viernes', enabled: true, startTime: '09:00', endTime: '18:00' },
-    { day: 'Sábado', enabled: false, startTime: '10:00', endTime: '14:00' },
-    { day: 'Domingo', enabled: false, startTime: '10:00', endTime: '14:00' },
-  ]);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [coverageRadius, setCoverageRadius] = useState(15);
+  const [stats, setStats] = useState<AvailabilityStats>({
+    active_days: 0,
+    weekly_hours: 0,
+    availability_percentage: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [radiusModalVisible, setRadiusModalVisible] = useState(false);
+
+  // Opciones de radio de servicio
+  const radiusOptions = [5, 10, 15, 20, 25, 30, 40, 50];
+
+  useEffect(() => {
+    loadAvailability();
+  }, []);
+
+  const loadAvailability = async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 Cargando disponibilidad del trabajador...');
+      
+      // Cargar disponibilidad
+      const availabilityData: AvailabilityData = await clientAPI.getWorkerAvailability();
+      console.log('✅ Disponibilidad cargada:', availabilityData);
+      
+      setImmediateService(availabilityData.immediate_service);
+      setTimeSlots(availabilityData.time_slots);
+      setCoverageRadius(availabilityData.coverage_radius);
+
+      // Cargar estadísticas
+      const statsData: AvailabilityStats = await clientAPI.getAvailabilityStats();
+      console.log('✅ Estadísticas cargadas:', statsData);
+      
+      setStats(statsData);
+
+    } catch (error) {
+      console.error('❌ Error cargando disponibilidad:', error);
+      Alert.alert('Error', 'No se pudieron cargar los datos de disponibilidad');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleDay = (index: number) => {
     const newSlots = [...timeSlots];
@@ -34,9 +84,77 @@ export default function WorkerAvailabilityScreen() {
     setTimeSlots(newSlots);
   };
 
-  const saveAvailability = () => {
-    Alert.alert('Éxito', 'Disponibilidad guardada correctamente');
+  const calculateStats = (slots: TimeSlot[]) => {
+    const activeDays = slots.filter(slot => slot.enabled).length;
+    
+    // Calcular horas semanales (simplificado)
+    let weeklyHours = 0;
+    slots.forEach(slot => {
+      if (slot.enabled) {
+        const start = parseInt(slot.startTime.split(':')[0]);
+        const end = parseInt(slot.endTime.split(':')[0]);
+        weeklyHours += (end - start);
+      }
+    });
+
+    const availabilityPercentage = Math.round((activeDays / 7) * 100);
+
+    return {
+      active_days: activeDays,
+      weekly_hours: weeklyHours,
+      availability_percentage: availabilityPercentage
+    };
   };
+
+  const selectRadius = (radius: number) => {
+    setCoverageRadius(radius);
+    setRadiusModalVisible(false);
+  };
+
+  const saveAvailability = async () => {
+    try {
+      setSaving(true);
+      console.log('💾 Guardando disponibilidad...');
+
+      const availabilityData: AvailabilityData = {
+        immediate_service: immediateService,
+        time_slots: timeSlots,
+        coverage_radius: coverageRadius
+      };
+
+      // Calcular estadísticas actualizadas
+      const updatedStats = calculateStats(timeSlots);
+      setStats(updatedStats);
+
+      // Guardar en el backend
+      const response = await clientAPI.saveWorkerAvailability(availabilityData);
+      console.log('✅ Respuesta del servidor:', response);
+
+      Alert.alert('Éxito', 'Disponibilidad guardada correctamente');
+      
+    } catch (error) {
+      console.error('❌ Error guardando disponibilidad:', error);
+      Alert.alert('Error', 'No se pudo guardar la disponibilidad');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getRadiusDescription = (radius: number) => {
+    if (radius <= 10) return 'Zona local';
+    if (radius <= 20) return 'Zona media';
+    if (radius <= 30) return 'Zona amplia';
+    return 'Zona extensa';
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#28A745" />
+        <Text style={styles.loadingText}>Cargando disponibilidad...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -86,21 +204,35 @@ export default function WorkerAvailabilityScreen() {
         ))}
       </View>
 
-      {/* Zona de cobertura */}
+      {/* Zona de cobertura - ACTUALIZADO */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Zona de Cobertura</Text>
-        <View style={styles.coverageCard}>
-          <Text style={styles.coverageTitle}>Radio de servicio</Text>
-          <Text style={styles.coverageValue}>15 kilómetros</Text>
+        <TouchableOpacity 
+          style={styles.coverageCard}
+          onPress={() => setRadiusModalVisible(true)}
+        >
+          <View style={styles.coverageHeader}>
+            <Text style={styles.coverageTitle}>Radio de servicio</Text>
+            <Text style={styles.editText}>Cambiar</Text>
+          </View>
+          <Text style={styles.coverageValue}>{coverageRadius} kilómetros</Text>
           <Text style={styles.coverageDescription}>
-            Área máxima de desplazamiento para servicios
+            {getRadiusDescription(coverageRadius)} • Área máxima de desplazamiento
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* Botón guardar */}
-      <TouchableOpacity style={styles.saveButton} onPress={saveAvailability}>
-        <Text style={styles.saveButtonText}>Guardar Disponibilidad</Text>
+      <TouchableOpacity 
+        style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
+        onPress={saveAvailability}
+        disabled={saving}
+      >
+        {saving ? (
+          <ActivityIndicator size="small" color="white" />
+        ) : (
+          <Text style={styles.saveButtonText}>Guardar Disponibilidad</Text>
+        )}
       </TouchableOpacity>
 
       {/* Estadísticas de disponibilidad */}
@@ -108,19 +240,64 @@ export default function WorkerAvailabilityScreen() {
         <Text style={styles.sectionTitle}>Estadísticas</Text>
         <View style={styles.statsRow}>
           <View style={styles.stat}>
-            <Text style={styles.statNumber}>5/7</Text>
+            <Text style={styles.statNumber}>{stats.active_days}/7</Text>
             <Text style={styles.statLabel}>Días activos</Text>
           </View>
           <View style={styles.stat}>
-            <Text style={styles.statNumber}>45h</Text>
+            <Text style={styles.statNumber}>{stats.weekly_hours}h</Text>
             <Text style={styles.statLabel}>Horas semanales</Text>
           </View>
           <View style={styles.stat}>
-            <Text style={styles.statNumber}>92%</Text>
+            <Text style={styles.statNumber}>{stats.availability_percentage}%</Text>
             <Text style={styles.statLabel}>Disponibilidad</Text>
           </View>
         </View>
       </View>
+
+      {/* Modal para seleccionar radio */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={radiusModalVisible}
+        onRequestClose={() => setRadiusModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Seleccionar Radio de Servicio</Text>
+            <Text style={styles.modalSubtitle}>
+              Elige la distancia máxima que estás dispuesto a viajar para tus servicios
+            </Text>
+            
+            {radiusOptions.map((radius) => (
+              <TouchableOpacity
+                key={radius}
+                style={[
+                  styles.radiusOption,
+                  coverageRadius === radius && styles.radiusOptionSelected
+                ]}
+                onPress={() => selectRadius(radius)}
+              >
+                <View style={styles.radiusOptionContent}>
+                  <Text style={styles.radiusValue}>{radius} km</Text>
+                  <Text style={styles.radiusDescription}>
+                    {getRadiusDescription(radius)}
+                  </Text>
+                </View>
+                {coverageRadius === radius && (
+                  <Text style={styles.selectedIcon}>✓</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={() => setRadiusModalVisible(false)}
+            >
+              <Text style={styles.modalCloseText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -129,6 +306,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    marginTop: 20,
+    fontSize: 16,
+    color: '#666',
   },
   section: {
     backgroundColor: 'white',
@@ -188,14 +376,24 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#28A745',
   },
+  coverageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   coverageTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 5,
+  },
+  editText: {
+    fontSize: 14,
+    color: '#28A745',
+    fontWeight: '600',
   },
   coverageValue: {
-    fontSize: 18,
+    fontSize: 24,
     color: '#28A745',
     fontWeight: 'bold',
     marginBottom: 5,
@@ -210,6 +408,9 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#6C757D',
   },
   saveButtonText: {
     color: 'white',
@@ -232,5 +433,77 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     color: '#666',
+  },
+  // Estilos para el modal de radio
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  radiusOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  radiusOptionSelected: {
+    borderColor: '#28A745',
+    backgroundColor: '#f8fff8',
+  },
+  radiusOptionContent: {
+    flex: 1,
+  },
+  radiusValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 2,
+  },
+  radiusDescription: {
+    fontSize: 12,
+    color: '#666',
+  },
+  selectedIcon: {
+    fontSize: 18,
+    color: '#28A745',
+    fontWeight: 'bold',
+  },
+  modalCloseButton: {
+    marginTop: 15,
+    padding: 12,
+    backgroundColor: '#6C757D',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });

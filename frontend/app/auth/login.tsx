@@ -12,6 +12,7 @@ import {
 import { useAuth } from '../../src/context/AuthContext';
 import { router } from 'expo-router';
 import GoogleSignInButton from '../../src/components/GoogleSignInButton'; // ✅ NUEVO
+import { Colors } from '../../constants/theme';
 
 interface LoginForm {
   email: string;
@@ -216,7 +217,7 @@ export default function LoginScreen() {
           onBlur={() => handleFieldBlur('email')}
           autoCapitalize="none"
           keyboardType="email-address"
-          placeholderTextColor="#999"
+          placeholderTextColor={Colors.gunmetal}
           returnKeyType="next"
           editable={!loading}
         />
@@ -231,7 +232,7 @@ export default function LoginScreen() {
           onChangeText={(value) => handleFieldChange('password', value)}
           onBlur={() => handleFieldBlur('password')}
           secureTextEntry
-          placeholderTextColor="#999"
+          placeholderTextColor={Colors.gunmetal}
           returnKeyType="done"
           onSubmitEditing={handleSubmitEditing}
           editable={!loading}
@@ -265,14 +266,7 @@ export default function LoginScreen() {
           <Text style={styles.linkText}>¿No tienes cuenta? Regístrate aquí</Text>
         </TouchableOpacity>
 
-        {/* Sección de debug (opcional - puedes quitarla) */}
-        <View style={styles.debugSection}>
-          <Text style={styles.debugTitle}>Estado:</Text>
-          <Text style={styles.debugText}>Autenticado: {isAuthenticated ? 'Sí' : 'No'}</Text>
-          <Text style={styles.debugText}>Usuario: {user ? user.role : 'Ninguno'}</Text>
-          <Text style={styles.debugText}>Login Success: {loginSuccess ? 'Sí' : 'No'}</Text>
-          <Text style={styles.debugText}>Loading: {loading ? 'Sí' : 'No'}</Text>
-        </View>
+        
       </View>
     </ScrollView>
   );
@@ -287,20 +281,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.white,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 10,
-    color: '#333',
+    color: Colors.gunmetal,
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 30,
-    color: '#666',
+    color: Colors.gunmetal,
   },
   // ✅ NUEVOS ESTILOS PARA GOOGLE AUTH
   socialLoginSection: {
@@ -309,7 +303,7 @@ const styles = StyleSheet.create({
   socialLoginText: {
     textAlign: 'center',
     marginBottom: 15,
-    color: '#666',
+    color: Colors.gunmetal,
     fontSize: 14,
   },
   separator: {
@@ -320,54 +314,54 @@ const styles = StyleSheet.create({
   separatorLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#ddd',
+    backgroundColor: `${Colors.gunmetal}20`,
   },
   separatorText: {
     marginHorizontal: 15,
-    color: '#666',
+    color: Colors.gunmetal,
     fontSize: 14,
   },
   label: {
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#333',
+    color: Colors.gunmetal,
     fontSize: 16,
   },
   input: {
     backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: `${Colors.gunmetal}20`,
     padding: 15,
     marginBottom: 5,
     borderRadius: 8,
     fontSize: 16,
   },
   inputError: {
-    borderColor: '#DC3545',
-    backgroundColor: '#FFF5F5',
+    borderColor: Colors.light.error,
+    backgroundColor: `${Colors.light.error}20`,
   },
   errorText: {
-    color: '#DC3545',
+    color: Colors.light.error,
     fontSize: 12,
     marginBottom: 15,
     marginTop: 2,
   },
   apiErrorContainer: {
-    backgroundColor: '#FFF5F5',
+    backgroundColor: `${Colors.light.error}20`,
     padding: 12,
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#DC3545',
+    borderLeftColor: Colors.light.error,
     marginBottom: 15,
   },
   apiErrorText: {
-    color: '#DC3545',
+    color: Colors.light.error,
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: Colors.celestialBlue,
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
@@ -380,7 +374,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ccc',
   },
   buttonText: {
-    color: 'white',
+    color: Colors.white,
     fontWeight: 'bold',
     fontSize: 16,
   },
@@ -392,7 +386,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   linkText: {
-    color: '#007AFF',
+    color: Colors.celestialBlue,
     fontSize: 16,
   },
   debugSection: {
@@ -401,17 +395,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff3cd',
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#ffc107',
+    borderLeftColor: Colors.sandyBrown,
   },
   debugTitle: {
     fontWeight: 'bold',
     marginBottom: 5,
-    color: '#856404',
+    color: Colors.sandyBrown,
     fontSize: 12,
   },
   debugText: {
     fontSize: 10,
-    color: '#856404',
+    color: Colors.sandyBrown,
     marginBottom: 2,
   },
 });

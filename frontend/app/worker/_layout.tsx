@@ -86,33 +86,12 @@ export default function WorkerLayout() {
         backgroundColor: '#28A745',
       },
       headerTintColor: '#fff',
-      headerRight: () => (
-        <TouchableOpacity 
-          onPress={handleLogout} 
-          style={{ marginRight: 15 }}
-        >
-          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Salir</Text>
-        </TouchableOpacity>
-      ),
+      
     }}>
       <Stack.Screen 
         name="index" 
         options={{ 
           title: 'Panel Trabajador',
-          headerRight: () => (
-            <TouchableOpacity 
-              onPress={handleLogoutDirecto} 
-              style={{ 
-                marginRight: 15, 
-                backgroundColor: '#DC3545', 
-                paddingHorizontal: 10,
-                paddingVertical: 5,
-                borderRadius: 5
-              }}
-            >
-              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 12 }}>SALIR</Text>
-            </TouchableOpacity>
-          ),
         }} 
       />
       <Stack.Screen 

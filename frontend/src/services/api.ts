@@ -26,6 +26,51 @@ interface CategoriesResponse {
   categories: any[];
 }
 
+// Interfaces para servicios y appointments
+export interface ServiceRequest {
+  id: number;
+  client_id: number;
+  worker_id: number;
+  service_type: string;
+  urgency: string;
+  description: string;
+  status: string;
+  budget_estimate: number;
+  preferred_date: string;
+  preferred_time: string;
+  contact_method: string;
+  client_phone: string;
+  created_at: string;
+  client_name: string;
+  client_email: string;
+}
+
+export interface Appointment {
+  id: number;
+  client_id: number;
+  worker_id: number;
+  service_type: string;
+  description: string;
+  scheduled_date: string;
+  scheduled_time: string;
+  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+  total_cost: number;
+  address: string;
+  contact_phone: string;
+  special_instructions: string;
+  created_at: string;
+  client_name: string;
+  client_email: string;
+}
+
+interface ServiceRequestsResponse {
+  requests: ServiceRequest[];
+}
+
+interface AppointmentsResponse {
+  appointments: Appointment[];
+}
+
 // IMPORTANTE: Cambiar por tu IP local si estás en dispositivo físico
 const API_BASE_URL = 'http://localhost:3001/api'; 
 
@@ -129,6 +174,45 @@ export const categoriesAPI = {
     api.get(`/categories/${id}`),
 };
 
+// NUEVO: API para servicios y appointments del trabajador
+export const servicesAPI = {
+  // Obtener todas las solicitudes de servicio
+  getMyRequests: (): Promise<ServiceRequestsResponse> => 
+    api.get('/worker/requests'),
+  
+  // Obtener appointments del trabajador
+  getMyAppointments: (): Promise<AppointmentsResponse> => 
+    api.get('/worker/appointments'),
+  
+  // Aceptar una solicitud de servicio
+  acceptRequest: (requestId: number): Promise<ApiResponse> => 
+    api.put(`/worker/requests/${requestId}/accept`),
+  
+  // Rechazar una solicitud de servicio
+  rejectRequest: (requestId: number): Promise<ApiResponse> => 
+    api.put(`/worker/requests/${requestId}/reject`),
+  
+  // Actualizar estado de un appointment
+  updateAppointmentStatus: (appointmentId: number, status: string): Promise<ApiResponse> => 
+    api.put(`/worker/appointments/${appointmentId}/status`, { status }),
+  
+  // Obtener estadísticas del trabajador
+  getWorkerStats: (): Promise<{
+    pendingRequests: number;
+    upcomingAppointments: number;
+    monthlyEarnings: number;
+    totalCompleted: number;
+  }> => api.get('/worker/stats'),
+  
+  // Obtener perfil completo del trabajador (incluye datos de workers table)
+  getWorkerProfile: (): Promise<{ worker: any }> => 
+    api.get('/worker/profile'),
+  
+  // Actualizar perfil del trabajador
+  updateWorkerProfile: (profileData: any): Promise<ApiResponse> => 
+    api.put('/worker/profile', profileData),
+};
+
 // Utility functions
 export const handleAPIError = (error: any): string => {
   if (error && error.error) {
@@ -142,6 +226,14 @@ export const handleAPIError = (error: any): string => {
 
 export const isNetworkError = (error: any): boolean => {
   return error.message && error.message.includes('Network Error');
+};
+
+// Export principal para compatibilidad con código existente
+export const clientAPI = {
+  ...authAPI,
+  ...usersAPI,
+  ...categoriesAPI,
+  ...servicesAPI,
 };
 
 export default api;
