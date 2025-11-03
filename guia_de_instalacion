@@ -1,0 +1,239 @@
+🚀 Guía para Montar el Proyecto QuickService Pro
+📋 Stack Tecnológico Utilizado
+Backend: Node.js + Express.js
+
+Base de Datos: MySQL (phpMyAdmin)
+
+Frontend Mobile: React Native + Expo
+
+Autenticación: JWT + Google OAuth
+
+Almacenamiento: Multer para uploads de archivos
+
+🗄️ Configuración de Base de Datos (MySQL/phpMyAdmin)
+1. Preparar la Base de Datos
+sql
+-- Crear base de datos manualmente en phpMyAdmin
+CREATE DATABASE quickservice_db;
+
+-- O ejecutar el script de inicialización
+node config/initDatabase.js
+2. Estructura de Tablas Requeridas
+El proyecto crea automáticamente:
+
+users - Usuarios del sistema
+
+workers - Información de trabajadores
+
+categories - Categorías de servicios
+
+appointments - Turnos programados
+
+service_requests - Solicitudes de contacto
+
+worker_availability - Disponibilidad de trabajadores
+
+3. Configurar Variables de Entorno
+Crear archivo .env en la raíz del backend:
+
+env
+# Database
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=tu_password
+DB_NAME=quickservice_db
+DB_PORT=3306
+
+# JWT
+JWT_SECRET=tu_jwt_secret_super_seguro
+JWT_EXPIRES_IN=24h
+
+# Google OAuth
+GOOGLE_CLIENT_ID=tu_google_client_id
+
+# Server
+PORT=3001
+NODE_ENV=development
+⚙️ Configuración del Backend (Node.js/Express)
+1. Instalar Dependencias
+bash
+cd backend
+npm install
+2. Dependencias Principales
+json
+{
+  "express": "Servidor web",
+  "mysql2": "Conexión a MySQL",
+  "bcrypt": "Encriptación de contraseñas",
+  "jsonwebtoken": "Tokens JWT",
+  "multer": "Upload de archivos",
+  "cors": "Habilitar CORS",
+  "helmet": "Seguridad",
+  "dotenv": "Variables de entorno"
+}
+3. Ejecutar el Backend
+bash
+# Desarrollo
+npm run dev
+
+# Producción
+npm start
+4. Verificar que Funcione
+bash
+# Health Check
+curl http://localhost:3001/api/health
+
+# Test Database
+curl http://localhost:3001/api/test-users
+📱 Configuración del Frontend (React Native/Expo)
+1. Instalar Expo CLI
+bash
+npm install -g expo-cli
+2. Configurar el Proyecto Mobile
+bash
+cd mobile
+npm install
+3. Dependencias Principales del Frontend
+json
+{
+  "expo": "Framework React Native",
+  "react-navigation": "Navegación",
+  "axios": "HTTP requests al backend",
+  "react-native-async-storage": "Almacenamiento local",
+  "expo-google-auth": "Autenticación con Google",
+  "react-native-image-picker": "Selección de imágenes"
+}
+4. Configurar API Base URL
+En mobile/src/config/api.js:
+
+javascript
+const API_BASE_URL = 'http://localhost:3001/api';
+// Para dispositivo físico:
+const API_BASE_URL = 'http://192.168.1.X:3001/api';
+5. Ejecutar la App Mobile
+bash
+# Desarrolllo
+expo start
+
+# Alternativas
+npm start
+expo start --tunnel
+🔗 Configuración de CORS (Importante)
+El backend está configurado para aceptar requests desde:
+
+javascript
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:8081', 
+  'http://localhost:19006',
+  'exp://localhost:19000',
+  'http://192.168.1.*:8081',
+  'http://192.168.0.*:8081'
+];
+📊 Flujo de Instalación Paso a Paso
+Paso 1: Base de Datos
+Abrir phpMyAdmin
+
+Crear base de datos quickservice_db
+
+Ejecutar node config/initDatabase.js
+
+Verificar que se crearon las tablas
+
+Paso 2: Backend
+Clonar/navegar al directorio backend
+
+npm install
+
+Configurar .env
+
+npm run dev
+
+Verificar en http://localhost:3001/api/health
+
+Paso 3: Frontend Mobile
+Clonar/navegar al directorio mobile
+
+npm install
+
+Configurar API URL según el entorno
+
+expo start
+
+Escanear QR code con Expo Go app
+
+🎯 Estructura de Carpetas Recomendada
+text
+quickservice-pro/
+├── backend/
+│   ├── config/
+│   │   ├── database.js
+│   │   └── initDatabase.js
+│   ├── routes/
+│   │   ├── auth.js
+│   │   ├── users.js
+│   │   └── appointments.js
+│   ├── uploads/
+│   │   └── avatars/
+│   └── server.js
+├── mobile/
+│   ├── src/
+│   │   ├── screens/
+│   │   ├── components/
+│   │   ├── navigation/
+│   │   └── config/
+│   └── app.json
+└── README.md
+🔧 Solución de Problemas Comunes
+Error de Conexión a MySQL
+bash
+# Verificar que MySQL esté corriendo
+sudo service mysql start
+
+# Verificar credenciales en .env
+# Verificar que la base de datos existe
+Error de CORS en Mobile
+bash
+# Usar IP local en lugar de localhost
+# Verificar que el puerto 3001 esté abierto
+# Usar expo start --tunnel para dispositivos externos
+Error de Upload de Imágenes
+bash
+# Verificar que existe la carpeta uploads/avatars
+# Verificar permisos de escritura
+# Verificar límite de tamaño en Multer (5MB)
+Expo No Detecta Cambios
+bash
+# Limpiar cache
+expo start -c
+
+# Reinstalar node_modules
+rm -rf node_modules && npm install
+📱 Probar la Aplicación
+Backend (Verificar endpoints):
+bash
+# Health Check
+curl http://localhost:3001/api/health
+
+# Listar categorías
+curl http://localhost:3001/api/categories
+
+# Test database
+curl http://localhost:3001/api/test-users
+Mobile:
+Instalar Expo Go en tu teléfono
+
+Escanear QR code generado por expo start
+
+Probar registro y login
+
+🚀 Comandos Rápidos de Despliegue
+bash
+# Backend
+cd backend && npm install && npm run dev
+
+# Mobile (nueva terminal)
+cd mobile && npm install && expo start
+
+# Inicializar BD (opcional)
+node config/initDatabase.js
